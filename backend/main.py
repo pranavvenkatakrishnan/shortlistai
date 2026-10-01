@@ -8,9 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from matcher import analyze, craft_bullet_from_answer, get_model
-from resume_parser import UnsupportedFileType, estimate_pages_from_words, extract_pdf_links, extract_text_and_pages
-from resume_template import parse_resume, place_bullets, render_pdf
+from matcher import VagueAnswer, analyze, craft_bullet_from_answer, get_model
+from resume_parser import (
+    UnsupportedFileType,
+    estimate_pages_from_words,
+    extract_docx_links,
+    extract_pdf_links,
+    extract_text_and_pages,
+)
+from resume_template import parse_resume, place_bullets, render_pdf, strip_placeholders
 
 app = FastAPI(title="ShortlistAI")
 
@@ -75,7 +81,7 @@ async def api_extract_resume(file: UploadFile = File(...)):
         "format": fmt,
         "filename": file.filename or "resume",
         "page_count": page_count,
-        "links": extract_pdf_links(content) if fmt == "pdf" else {},
+        "links": extract_pdf_links(content) if fmt == "pdf" else extract_docx_links(content) if fmt == "docx" else {},
     }
     return {"resume_id": resume_id, "filename": file.filename, "text": text, "format": fmt, "page_count": page_count}
 
@@ -95,6 +101,7 @@ def api_generate_resume(req: GenerateResumeRequest):
     resume = parse_resume("\n".join(lines))
     if not resume.name:
         raise HTTPException(400, "The resume text is empty.")
+    left_out = strip_placeholders(resume)
     place_bullets(resume, added)
 
     if entry is not None:
@@ -120,6 +127,8 @@ def api_generate_resume(req: GenerateResumeRequest):
         "filename": f"{base_name}-improved.pdf",
         "page_count_estimate": pages,
         "truncated": not fits,
+        # Unfilled template placeholders that were left out, e.g. "Mirror Technologies – ...: dates, 2 bullets"
+        "left_out": left_out,
         "note": note,
         "file_base64": base64.b64encode(file_bytes).decode("ascii"),
     }
@@ -129,7 +138,10 @@ def api_generate_resume(req: GenerateResumeRequest):
 def api_clarify(req: ClarifyRequest):
     if not req.answer.strip():
         raise HTTPException(400, "Please describe your experience first.")
-    bullet = craft_bullet_from_answer(req.requirement, req.answer)
+    try:
+        bullet = craft_bullet_from_answer(req.requirement, req.answer)
+    except VagueAnswer as e:
+        raise HTTPException(400, str(e))
     return {"suggested_bullet": bullet}
 
 

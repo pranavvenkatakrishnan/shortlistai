@@ -43,7 +43,6 @@ FOCUS_LABEL_STRIP = re.compile(
     re.I,
 )
 
-ACTION_VERBS = ["Led", "Built", "Developed", "Implemented", "Designed", "Optimized", "Managed", "Delivered", "Drove"]
 
 # General guideline threshold for "likely to clear an ATS keyword screen / get shortlisted".
 # Not any specific employer's real cutoff — just a reasonable, visible bar to improve against.
@@ -272,10 +271,26 @@ def _build_suggestion(r: RequirementResult) -> dict:
     }
 
 
+VAGUE_ANSWER = re.compile(
+    r"^(yes|yeah|yep|y|no|nope|ok|okay|sure|done|i have|i did|i know( it)?|familiar|some|a bit|little|true)\W*$", re.I
+)
+MIN_ANSWER_WORDS = 4
+
+
+class VagueAnswer(ValueError):
+    pass
+
+
 def craft_bullet_from_answer(requirement: str, user_answer: str) -> str:
-    focus = extract_focus_phrase(requirement)
-    verb = ACTION_VERBS[abs(hash(requirement)) % len(ACTION_VERBS)]
-    answer = user_answer.strip().rstrip(".")
-    if answer:
-        return f"{verb} {focus} — {answer}."
-    return f"{verb} {focus} in a relevant project or role."
+    """Turns the user's own description into a resume bullet. Their words are
+    the content, so a bare "yes" can't become a bullet: gluing it onto the
+    job-description phrase produced lines like "Built exposure to X — yes."."""
+    answer = " ".join(user_answer.split()).strip(" .-•")
+    if VAGUE_ANSWER.match(answer) or len(answer.split()) < MIN_ANSWER_WORDS:
+        focus = extract_focus_phrase(requirement)
+        raise VagueAnswer(
+            f"Describe what you actually did with {focus}: what you built, the tools, and the result "
+            f"(e.g. \"Split the order service into 3 Spring Boot microservices behind an API gateway\")."
+        )
+    answer = re.sub(r"^(i|we)\s+", "", answer, flags=re.I)
+    return answer[0].upper() + answer[1:] + ("" if answer.endswith((".", "!", "?")) else ".")

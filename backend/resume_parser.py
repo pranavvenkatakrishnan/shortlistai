@@ -1,6 +1,7 @@
 import io
 import math
 import re
+import zipfile
 from typing import List, Tuple
 
 import pymupdf as fitz
@@ -129,10 +130,78 @@ def extract_pdf_links(content: bytes) -> dict:
     return links
 
 
+def _docx_paragraph_line(p) -> str:
+    """Word bullets are list formatting, not a "•" character, so list
+    paragraphs get one; tab-aligned dates ("Company<TAB>Jan 2025") keep a
+    single tab as the left/right column split."""
+    text = re.sub(r"\t+", "\t", p.text).strip()
+    if not text:
+        return ""
+    ppr = p._p.pPr
+    is_list = (ppr is not None and ppr.numPr is not None) or "list" in (p.style.name or "").lower()
+    if is_list and text[:1] not in BULLET_CHARS:
+        text = "• " + text
+    return text
+
+
+def extract_docx_lines(content: bytes) -> List[str]:
+    """Paragraphs and tables in document order. A table row laid out as
+    columns (e.g. company/role on the left, dates/location on the right)
+    becomes "left<TAB>right" lines, matching what PDFs produce."""
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    doc = Document(io.BytesIO(content))
+    lines: List[str] = []
+    for el in doc.element.body.iterchildren():
+        tag = el.tag.rsplit("}", 1)[-1]
+        if tag == "p":
+            lines.append(_docx_paragraph_line(Paragraph(el, doc)))
+        elif tag == "tbl":
+            for row in Table(el, doc).rows:
+                cells, seen = [], set()
+                for cell in row.cells:  # merged cells repeat; keep each once
+                    if id(cell._tc) not in seen:
+                        seen.add(id(cell._tc))
+                        cells.append([l for l in (_docx_paragraph_line(p) for p in cell.paragraphs) if l])
+                cells = [c for c in cells if c]
+                if len(cells) == 1:
+                    lines += cells[0]
+                    continue
+                for i in range(max((len(c) for c in cells), default=0)):
+                    left = cells[0][i] if i < len(cells[0]) else ""
+                    right = " ".join(c[i] for c in cells[1:] if i < len(c))
+                    lines.append(f"{left}\t{right}" if left and right else left or right)
+    return [l for l in lines if l]
+
+
+def extract_docx_links(content: bytes) -> dict:
+    """Visible hyperlink text -> URL, like extract_pdf_links."""
+    doc = Document(io.BytesIO(content))
+    rels = {r.rId: r.target_ref for r in doc.part.rels.values() if r.reltype.endswith("/hyperlink")}
+    links = {}
+    for h in doc.element.body.iter():
+        if h.tag.endswith("}hyperlink"):
+            rid = h.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id")
+            text = "".join(t.text or "" for t in h.iter() if t.tag.endswith("}t")).strip()
+            if rid in rels and text and len(text) <= 60:
+                links[text] = rels[rid]
+    return links
+
+
+def _docx_page_count(content: bytes) -> int:
+    """Word stores the page count it last laid out in docProps/app.xml."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as z:
+            m = re.search(rb"<Pages>(\d+)</Pages>", z.read("docProps/app.xml"))
+            return int(m.group(1)) if m else 0
+    except (KeyError, zipfile.BadZipFile):
+        return 0
+
+
 def extract_text_and_pages(filename: str, content: bytes) -> Tuple[str, str, int]:
-    """Returns (text, format, page_count). `text` is one resume line per line,
-    in the same order as the source document's paragraphs/pages, so line
-    positions line up with the original file for later editing."""
+    """Returns (text, format, page_count). `text` is one resume line per
+    visual line, in reading order, with right-aligned columns after a tab."""
     if len(content) > MAX_FILE_BYTES:
         raise ValueError("File is too large (max 8 MB).")
 
@@ -143,9 +212,8 @@ def extract_text_and_pages(filename: str, content: bytes) -> Tuple[str, str, int
         with fitz.open(stream=content, filetype="pdf") as doc:
             page_count = len(doc)
     elif fmt == "docx":
-        doc = Document(io.BytesIO(content))
-        text = "\n".join(p.text for p in doc.paragraphs)
-        page_count = estimate_pages_from_words(text)
+        text = "\n".join(extract_docx_lines(content))
+        page_count = _docx_page_count(content) or estimate_pages_from_words(text)
     else:
         text = content.decode("utf-8", errors="ignore")
         page_count = estimate_pages_from_words(text)

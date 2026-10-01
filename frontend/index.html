@@ -791,6 +791,10 @@ async function generateFromAnswer(idx, reqB64){
   });
   const data = await res.json();
   const box = document.getElementById(`ask-result-${idx}`);
+  if(!res.ok){
+    box.innerHTML = `<div style="margin-top:8px;border-radius:8px;padding:10px 12px;background:#fdf1e6;color:#7a3e00">${escapeHtml(data.detail || 'Please describe what you did.')}</div>`;
+    return;
+  }
   box.innerHTML = `
     <div class="box new" style="margin-top:8px;border-radius:8px;padding:10px 12px;background:#e9f9ee;color:#134d27" contenteditable="true" id="ask-bullet-${idx}">${escapeHtml(data.suggested_bullet)}</div>
     <div class="accept-row">
@@ -891,12 +895,14 @@ function renderFinalPreview(data){
   meta.textContent = `📄 Format: PDF · ${data.page_count_estimate} page(s)${data.truncated ? "" : " · " + data.note}`;
 
   const warn = document.getElementById('finalWarning');
-  if(data.truncated){
-    warn.hidden = false;
-    warn.textContent = '⚠ ' + data.note;
-  }else{
-    warn.hidden = true;
+  const warnings = [];
+  if(data.truncated) warnings.push(data.note);
+  if(data.left_out && data.left_out.length){
+    warnings.push('Left out unfilled [placeholders]. Fill these in: ' + data.left_out.join('; ') + '.');
   }
+  warn.hidden = warnings.length === 0;
+  warn.textContent = warnings.map(w => '⚠ ' + w).join('\n');
+  warn.style.whiteSpace = 'pre-line';
 
   const pdfFrame = document.getElementById('finalPdfPreview');
   const textBox = document.getElementById('finalTextPreview');

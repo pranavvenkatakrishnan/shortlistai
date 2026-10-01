@@ -66,6 +66,7 @@ class Resume:
     name: str
     contact: List[str]
     sections: List[Section]
+    headline: List[str] = field(default_factory=list)
 
 
 def _norm(s: str) -> str:
@@ -127,12 +128,19 @@ def parse_resume(text: str) -> Resume:
 
     name = _split_tab(joined[0])[0] if joined else ""
     rest = joined[1:]
+    # The block under the name: contact lines, plus a short headline such as
+    # "Backend Developer · Java, Spring Boot". Both are centred under the name.
     contact: List[str] = []
-    while rest and not _is_section_title(rest[0]) and CONTACT_RE.search(rest[0]) and len(rest[0]) < 200:
-        for part in re.split(r"\s*[|\t•·]\s*", rest.pop(0)):
-            part = part.strip(" |")
-            if part:
-                contact.append(part)
+    headline: List[str] = []
+    while rest and not _is_section_title(rest[0]) and len(rest[0]) < 200:
+        l = rest[0]
+        if CONTACT_RE.search(l):
+            contact += [p.strip(" |") for p in re.split(r"\s*[|\t•·]\s*", l) if p.strip(" |")]
+        elif len(l.split()) <= 12 and not BULLET_RE.match(l) and "\t" not in l:
+            headline.append(l)
+        else:
+            break
+        rest.pop(0)
 
     # Anything before the first recognised heading (e.g. an untitled summary)
     # goes into an untitled section rather than being lost or mislabelled.
@@ -163,10 +171,12 @@ def parse_resume(text: str) -> Resume:
             sec.items.append(Item("sub", left, right))
         elif right:
             sec.items.append(Item("header", left, right))
-        elif LABEL_RE.match(left):
-            sec.items.append(Item("text", left))
+        # A line with bullets under it is an entry title, even with a colon
+        # in it ("QIS: Quality Inspection System | FastAPI").
         elif BULLET_RE.match(nxt):
             sec.items.append(Item("header", left))
+        elif LABEL_RE.match(left):
+            sec.items.append(Item("text", left))
         elif prev is not None and prev.kind == "text" and len(prev.left) > 60 and prev.left[-1:] not in ".!?:":
             prev.left = join_wrapped(prev.left, left)  # a wrapped paragraph line
         else:
@@ -183,7 +193,21 @@ def parse_resume(text: str) -> Resume:
             kept.append(it)
         sec.items = kept
 
-    return Resume(name=name, contact=contact, sections=sections)
+    return Resume(name=name, contact=contact, sections=sections, headline=headline)
+
+
+def _match_bullet_style(resume: Resume, bullets: List[str]) -> List[str]:
+    """New bullets follow the resume's own convention: capitalised, and
+    ending with a full stop only if most existing bullets do."""
+    existing = [it.left for s in resume.sections for it in s.items if it.kind == "bullet"]
+    with_period = sum(b.rstrip().endswith(".") for b in existing)
+    use_period = with_period * 2 >= len(existing) if existing else True
+    styled = []
+    for b in bullets:
+        b = b.strip().rstrip(".").strip()
+        b = b[:1].upper() + b[1:]
+        styled.append(b + "." if use_period else b)
+    return styled
 
 
 def place_bullets(resume: Resume, bullets: List[str]) -> None:
@@ -191,17 +215,22 @@ def place_bullets(resume: Resume, bullets: List[str]) -> None:
     similar to, instead of tacking it onto the end of the document."""
     if not bullets:
         return
-    entries = []  # (section, index of the entry's last item, entry text)
+    bullets = _match_bullet_style(resume, bullets)
+    entries = []  # (section, index to insert after, entry text)
     for sec in resume.sections:
         if not any(h in _norm(sec.title) for h in ENTRY_SECTION_HINTS):
             continue
-        start = None
-        for idx, it in enumerate(sec.items + [Item("header", "")]):
-            if it.kind == "header":
-                if start is not None:
-                    text = " ".join(x.left for x in sec.items[start:idx])
-                    entries.append((sec, idx - 1, text))
-                start = idx
+        for start, it in enumerate(sec.items):
+            if it.kind != "header":
+                continue
+            # An entry is its header, subtitle and bullets; a plain text line
+            # (e.g. "Other internships: ...") ends it, so new bullets never
+            # land under a note line.
+            end = start
+            while end + 1 < len(sec.items) and sec.items[end + 1].kind in ("sub", "bullet"):
+                end += 1
+            text = " ".join(x.left for x in sec.items[start:end + 1])
+            entries.append((sec, end, text))
     if not entries:
         sec = Section("Highlights")
         resume.sections.append(sec)
@@ -217,10 +246,56 @@ def place_bullets(resume: Resume, bullets: List[str]) -> None:
     for b in bullets:
         sims = util.cos_sim(model.encode(b, convert_to_tensor=True), entry_emb)[0]
         targets.append((int(sims.argmax()), b))
-    # Insert from the bottom up so earlier insertion indexes stay valid.
-    for entry_idx, b in sorted(targets, key=lambda t: -t[0]):
+    # Insert from the bottom entry up so earlier insertion indexes stay valid.
+    for entry_idx in sorted({t[0] for t in targets}, reverse=True):
         sec, last_idx, _ = entries[entry_idx]
-        sec.items.insert(last_idx + 1, Item("bullet", b))
+        new_items = [Item("bullet", b) for i, b in targets if i == entry_idx]
+        sec.items[last_idx + 1:last_idx + 1] = new_items
+
+
+PLACEHOLDER_RE = re.compile(r"\[[^\[\]]{2,}\](?!\()")  # "[Month Year]", not "[link](url)"
+
+
+def strip_placeholders(resume: Resume) -> List[str]:
+    """Leaves unfilled template placeholders out of the final resume instead
+    of printing "[Month Year]" or "[What you built…]". Returns a short
+    description of what was left out, so the user knows what to fill in."""
+    missing: List[str] = []
+
+    def clean(s: str) -> str:
+        s = PLACEHOLDER_RE.sub("", s)
+        s = re.sub(r"^[\s|,–—-]+|[\s|,–—-]+$", "", s)  # separators left dangling
+        return re.sub(r"\s{2,}", " ", s)
+
+    resume.contact = [c for c in resume.contact if not PLACEHOLDER_RE.fullmatch(c.strip())]
+    for sec in resume.sections:
+        kept: List[Item] = []
+        entry = sec.title
+        gaps: List[str] = []
+        for it in sec.items:
+            if it.kind == "header":
+                if gaps:
+                    missing.append(f"{entry}: {', '.join(gaps)}")
+                entry, gaps = it.left, []
+            has_ph = PLACEHOLDER_RE.search(it.left) or PLACEHOLDER_RE.search(it.right)
+            if not has_ph:
+                kept.append(it)
+                continue
+            if PLACEHOLDER_RE.search(it.right):
+                it.right = clean(it.right)
+                gaps.append("dates")
+            if PLACEHOLDER_RE.search(it.left):
+                it.left = clean(it.left)
+                if it.kind in ("bullet", "text") and len(it.left.split()) < 3:
+                    gaps.append("a bullet")
+                    continue
+            kept.append(it)
+        if gaps:
+            missing.append(f"{entry}: {', '.join(gaps)}")
+        sec.items = kept
+    # "a bullet, a bullet" -> "2 bullets"
+    return [re.sub(r"(a bullet(, )?){2,}", lambda m: f"{m.group(0).count('a bullet')} bullets", m).rstrip(", ")
+            for m in missing]
 
 
 # ---------------------------------------------------------------- rendering
@@ -307,6 +382,8 @@ def _build(resume: Resume, links: dict, size: float, page_size=LETTER) -> bytes:
         contact_parts.append(f'<a href="{escape(url)}">{escape(c)}</a>' if url else escape(c))
 
     story = [Paragraph(escape(resume.name), name_st)]
+    for h in resume.headline:
+        story.append(Paragraph(escape(h), contact_st))
     if contact_parts:
         story += [Spacer(1, 2), Paragraph(" | ".join(contact_parts), contact_st)]
 
