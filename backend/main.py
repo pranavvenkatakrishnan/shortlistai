@@ -3,12 +3,14 @@ import uuid
 from pathlib import Path
 from typing import List, Optional
 
+import pymupdf as fitz
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from matcher import VagueAnswer, analyze, craft_bullet_from_answer, get_model
+from doc_editor import MIME, apply_edits
+from matcher import analyze, edit_ops, get_model, normalize, preview_edits
 from resume_parser import (
     UnsupportedFileType,
     estimate_pages_from_words,
@@ -27,9 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory store of uploaded originals, keyed by a per-upload id, so the final
-# resume keeps the original's page count and links. Prototype-scale only:
-# lost on server restart, and not shared across processes.
+# In-memory store of uploaded originals, keyed by a per-upload id, so edits
+# can be applied to the original file and it keeps its page count and links.
+# Prototype-scale only: lost on server restart, and not shared across processes.
 _RESUME_CACHE: dict[str, dict] = {}
 
 
@@ -38,9 +40,15 @@ class AnalyzeRequest(BaseModel):
     jd_text: str
 
 
-class ClarifyRequest(BaseModel):
-    requirement: str
-    answer: str
+class EditsRequest(BaseModel):
+    resume_text: str
+    jd_text: str
+    # Keyword edits from /api/analyze that the user selected.
+    edits: List[dict] = []
+
+
+class ExportRequest(EditsRequest):
+    resume_id: Optional[str] = None
 
 
 class GenerateResumeRequest(BaseModel):
@@ -78,6 +86,7 @@ async def api_extract_resume(file: UploadFile = File(...)):
 
     resume_id = uuid.uuid4().hex
     _RESUME_CACHE[resume_id] = {
+        "content": content,
         "format": fmt,
         "filename": file.filename or "resume",
         "page_count": page_count,
@@ -134,15 +143,53 @@ def api_generate_resume(req: GenerateResumeRequest):
     }
 
 
-@app.post("/api/clarify")
-def api_clarify(req: ClarifyRequest):
-    if not req.answer.strip():
-        raise HTTPException(400, "Please describe your experience first.")
+@app.post("/api/preview-edits")
+def api_preview_edits(req: EditsRequest):
+    """Score and highlighted text of the resume with the selected edits."""
     try:
-        bullet = craft_bullet_from_answer(req.requirement, req.answer)
-    except VagueAnswer as e:
+        return preview_edits(req.resume_text, req.jd_text, req.edits)
+    except ValueError as e:
         raise HTTPException(400, str(e))
-    return {"suggested_bullet": bullet}
+
+
+def _pdf_pages(data: bytes) -> int:
+    with fitz.open(stream=data, filetype="pdf") as d:
+        return len(d)
+
+
+@app.post("/api/export")
+def api_export(req: ExportRequest):
+    """The selected keyword edits applied to the uploaded file itself, in its
+    own format (PDF, DOCX, LaTeX or text), so its layout is unchanged."""
+    lines = normalize(req.resume_text).split("\n")
+    ops = edit_ops(lines, req.edits)
+    entry = _RESUME_CACHE.get(req.resume_id) if req.resume_id else None
+    if entry is not None:
+        fmt, content = entry["format"], entry["content"]
+        base_name = entry["filename"].rsplit(".", 1)[0] if "." in entry["filename"] else entry["filename"]
+    else:  # pasted text: the edited text itself
+        fmt, content, base_name = "txt", "\n".join(lines).encode("utf-8"), "resume"
+    try:
+        file_bytes, errors = apply_edits(fmt, content, ops)
+    except Exception as e:  # a damaged or unusual file shouldn't take the app down
+        raise HTTPException(400, f"Couldn't edit this {fmt.upper()} file: {e}")
+
+    # A new bullet that couldn't be placed (e.g. no room left on the page) is
+    # handed over to add by hand; other failures are reported as such.
+    to_copy = [op["new"] for op, err in zip(ops, errors) if err and op["insert"]]
+    failed = [{"old": op["old"], "new": op["new"], "reason": err} for op, err in zip(ops, errors)
+              if err and not op["insert"]]
+    return {
+        "format": fmt,
+        "filename": f"{base_name}-edited.{fmt}",
+        "mime": MIME[fmt],
+        "applied": len(ops) - len(failed) - len(to_copy),
+        "failed": failed,
+        "to_copy": to_copy,
+        # A PDF grows a page only when the new lines can't fit any other way.
+        "pages": [_pdf_pages(content), _pdf_pages(file_bytes)] if fmt == "pdf" else None,
+        "file_base64": base64.b64encode(file_bytes).decode("ascii"),
+    }
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"

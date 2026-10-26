@@ -3,515 +3,331 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ShortlistAI — Resume ↔ Job Match & Rewrite</title>
+<title>ShortlistAI</title>
 <style>
   :root{
-    --bg:#f6f7fb;
-    --card:#ffffff;
-    --border:#e6e8f0;
-    --text:#1c1f2b;
-    --muted:#6b7080;
-    --accent1:#6366f1;
-    --accent2:#a855f7;
-    --accent-grad:linear-gradient(135deg,var(--accent1),var(--accent2));
-    --green:#16a34a;
-    --green-bg:#e9f9ee;
-    --amber:#d97706;
-    --amber-bg:#fff6e5;
-    --red:#dc2626;
-    --red-bg:#fdecec;
-    --blue:#2563eb;
-    --blue-bg:#eaf1ff;
-    --radius:16px;
-    --shadow:0 1px 2px rgba(20,20,40,.04), 0 8px 24px rgba(20,20,40,.06);
+    --bg:#f6f7fb; --card:#fff; --border:#e6e8f0; --text:#1c1f2b; --muted:#6b7080;
+    --accent:#6366f1; --accent-grad:linear-gradient(135deg,#6366f1,#a855f7);
+    --green:#16a34a; --green-bg:#e9f9ee; --amber:#d97706; --amber-bg:#fff6e5; --red:#dc2626; --red-bg:#fdecec;
+    --blue:#2563eb; --blue-bg:#eaf1ff;
+    --radius:14px; --shadow:0 1px 2px rgba(20,20,40,.04),0 6px 18px rgba(20,20,40,.05);
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
-  body{
-    margin:0;
-    font-family:'Segoe UI',ui-sans-serif,system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
-    background:
-      radial-gradient(1200px 500px at 10% -10%, rgba(99,102,241,.08), transparent),
-      radial-gradient(1000px 500px at 100% 0%, rgba(168,85,247,.07), transparent),
-      var(--bg);
-    color:var(--text);
-    min-height:100vh;
-  }
-  .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
-  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.02em}
-  .brand .mark{
-    width:34px;height:34px;border-radius:10px;background:var(--accent-grad);
-    display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;
-    box-shadow:var(--shadow);
-  }
-  .brand small{display:block;font-weight:500;font-size:12px;color:var(--muted);margin-top:1px}
-  nav.pill{font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--border);padding:6px 14px;border-radius:999px;box-shadow:var(--shadow)}
-
-  .hero{text-align:center;max-width:720px;margin:0 auto 34px}
-  .hero h1{font-size:38px;line-height:1.15;letter-spacing:-.03em;margin:0 0 10px}
-  .hero h1 span{background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .hero p{color:var(--muted);font-size:16px;margin:0}
-
-  .input-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;align-items:start}
-  @media (max-width:820px){.input-grid{grid-template-columns:1fr}}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
-  .card h3{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:8px}
-  .card h3 .n{width:22px;height:22px;border-radius:7px;background:var(--accent-grad);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;font-weight:700}
-  .card p.hint{margin:2px 0 10px;color:var(--muted);font-size:12.5px}
-  textarea{
-    width:100%;min-height:230px;resize:vertical;border:1px solid var(--border);border-radius:10px;
-    padding:12px 14px;font-size:13.5px;line-height:1.55;font-family:inherit;color:var(--text);background:#fbfbfe;
-    outline:none;transition:border-color .15s, box-shadow .15s;
-  }
-  textarea:focus{border-color:var(--accent1);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
-  .charcount{text-align:right;font-size:11px;color:var(--muted);margin-top:4px}
-
-  .dropzone{
-    border:2px dashed var(--border);border-radius:12px;padding:26px 16px;text-align:center;
-    cursor:pointer;background:#fbfbfe;transition:border-color .15s, background .15s;min-height:150px;
-    display:flex;align-items:center;justify-content:center;flex-direction:column;
-  }
-  .dropzone.drag{border-color:var(--accent1);background:#f2f1fe}
-  .dropzone:focus{outline:none;border-color:var(--accent1);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
-  .dz-state{width:100%}
-  .dz-icon{font-size:26px;margin-bottom:6px}
-  .dz-title{font-weight:600;font-size:14px}
-  .dz-sub{font-size:12px;color:var(--muted);margin-top:2px}
-  .dz-file{display:flex;align-items:center;gap:10px;justify-content:center;text-align:left}
-  .dz-file-icon{font-size:26px}
-  .dz-filename{font-weight:600;font-size:13.5px;word-break:break-all}
-  .dz-filemeta{font-size:11.5px;color:var(--muted)}
-  .dz-actions{display:flex;gap:8px;justify-content:center;margin-top:12px}
-  .dz-error-state{color:var(--red);font-size:13px}
-  .resume-text-preview{margin-top:10px;max-height:160px;overflow:auto;font-size:12px;line-height:1.6;background:#f8f9fc;border:1px solid var(--border);border-radius:8px;padding:10px 12px;white-space:pre-wrap;color:var(--muted)}
-  .link-btn{background:none;border:none;color:var(--accent1);font-size:12.5px;font-weight:600;padding:8px 0 0;cursor:pointer;display:block}
-  .link-btn:hover{text-decoration:underline}
-  .spinner.dark{border:2px solid #d8dae6;border-top-color:var(--accent1)}
-
-  .actions{display:flex;justify-content:center;gap:12px;align-items:center;margin:6px 0 8px;flex-wrap:wrap}
+  body{margin:0;font-family:'Segoe UI',ui-sans-serif,system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+  .wrap{max-width:1000px;margin:0 auto;padding:24px 16px 60px}
   button{font-family:inherit;cursor:pointer}
-  .btn-primary{
-    background:var(--accent-grad);color:#fff;border:none;padding:13px 30px;border-radius:12px;font-size:15px;font-weight:700;
-    box-shadow:0 8px 20px rgba(99,102,241,.35);transition:transform .12s, box-shadow .12s;
-  }
-  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(99,102,241,.45)}
-  .btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
-  .btn-ghost{background:#fff;border:1px solid var(--border);padding:12px 20px;border-radius:12px;font-size:14px;color:var(--text);font-weight:600}
-  .btn-ghost:hover{border-color:var(--accent1);color:var(--accent1)}
-  .btn-small{background:#fff;border:1px solid var(--border);padding:7px 12px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--text)}
-  .btn-small:hover{border-color:var(--accent1);color:var(--accent1)}
-  .btn-small.primary{background:var(--accent-grad);color:#fff;border:none}
-  .btn-small.danger{color:var(--red)}
-  .btn-small.danger:hover{border-color:var(--red)}
 
-  .error-box{max-width:640px;margin:0 auto 16px;background:var(--red-bg);color:var(--red);border:1px solid #f8c9c9;padding:12px 16px;border-radius:10px;font-size:13.5px;text-align:center}
+  header{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+  .mark{width:32px;height:32px;border-radius:9px;background:var(--accent-grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+  header b{font-size:18px}
+  header span{color:var(--muted);font-size:13px}
 
-  #results{display:none}
-  .fade-in{animation:fadeIn .4s ease}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .card h3{margin:0 0 10px;font-size:14px}
+  .inputs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  textarea{width:100%;min-height:170px;resize:vertical;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;line-height:1.5;background:#fbfbfe;color:var(--text);outline:none}
+  textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+  .dropzone{border:2px dashed var(--border);border-radius:10px;min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;cursor:pointer;background:#fbfbfe;padding:16px}
+  .dropzone.drag,.dropzone:focus{border-color:var(--accent);outline:none}
+  .dropzone .sub{color:var(--muted);font-size:12px}
+  .dropzone.error .sub{color:var(--red)}
+  .link{background:none;border:none;color:var(--accent);font-size:12.5px;font-weight:600;padding:8px 0 0}
 
-  .score-row{display:grid;grid-template-columns:220px 1fr;gap:22px;margin:30px 0 22px}
-  @media (max-width:820px){.score-row{grid-template-columns:1fr}}
-  .gauge-card{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-  .gauge{position:relative;width:170px;height:170px}
-  .gauge svg.gauge-arc-svg{transform:rotate(-90deg)}
-  .gauge svg.gauge-target-overlay{position:absolute;inset:0}
-  .gauge .pct{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  .gauge .pct b{font-size:32px;letter-spacing:-.02em}
-  .gauge .pct span{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-  .gauge-label{margin-top:10px;font-size:13px;color:var(--muted)}
-  .target-line{margin-top:2px;font-size:11.5px;color:var(--muted)}
-  .target-badge{margin-top:8px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;display:inline-block}
-  .target-badge.pass{background:var(--green-bg);color:var(--green)}
-  .target-badge.fail{background:var(--red-bg);color:var(--red)}
+  .actions{display:flex;justify-content:center;gap:10px;margin:18px 0}
+  .btn{border:1px solid var(--border);background:#fff;color:var(--text);padding:8px 14px;border-radius:9px;font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.primary{background:var(--accent-grad);color:#fff;border:none}
+  .btn.primary:hover{filter:brightness(1.05)}
+  .btn.big{padding:12px 26px;font-size:15px;border-radius:11px}
+  .btn.small{padding:5px 10px;font-size:12px}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .error{max-width:620px;margin:0 auto 16px;background:var(--red-bg);color:var(--red);padding:10px 14px;border-radius:10px;text-align:center}
+  .muted{color:var(--muted);font-size:12.5px}
 
-  .summary-card{display:flex;flex-direction:column;justify-content:center;gap:14px}
-  .counts{display:flex;gap:10px;flex-wrap:wrap}
-  .count-pill{flex:1;min-width:100px;border-radius:12px;padding:12px 14px;border:1px solid var(--border)}
-  .count-pill b{display:block;font-size:22px}
-  .count-pill span{font-size:12px;color:var(--muted)}
-  .count-pill.match{background:var(--green-bg)}
-  .count-pill.match b{color:var(--green)}
-  .count-pill.unclear{background:var(--amber-bg)}
-  .count-pill.unclear b{color:var(--amber)}
-  .count-pill.notfound{background:var(--red-bg)}
-  .count-pill.notfound b{color:var(--red)}
-  details.methodology{font-size:12.5px;color:var(--muted)}
-  details.methodology summary{cursor:pointer;font-weight:600;color:var(--accent1)}
-  details.methodology p{margin:8px 0 0;line-height:1.6}
+  /* ---- summary bar */
+  .summary{display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center}
+  @media (max-width:760px){.inputs{grid-template-columns:1fr}.summary{grid-template-columns:1fr;text-align:center}}
+  .ring{--p:0;--c:var(--red);width:112px;height:112px;margin:0 auto;border-radius:50%;display:grid;place-items:center;
+        background:conic-gradient(var(--c) calc(var(--p)*1%),#eef0f6 0)}
+  .ring div{width:90px;height:90px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:26px;font-weight:800;line-height:1}
+  .ring small{display:block;font-size:10.5px;color:var(--muted);font-weight:600}
+  .headline{font-size:16px;font-weight:700;margin-bottom:6px}
+  .headline .up{color:var(--green)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{background:#f4f5fa;border-radius:999px;padding:4px 10px;font-size:12px;color:#40445a}
+  .chip b{color:var(--text)}
+  .cta{display:flex;flex-direction:column;gap:8px;min-width:200px}
+  .note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
 
-  .section-title{display:flex;align-items:center;gap:10px;margin:38px 0 14px}
-  .section-title h2{font-size:19px;margin:0}
-  .section-title .line{flex:1;height:1px;background:var(--border)}
+  /* ---- tabs */
+  .tabs{display:flex;gap:4px;margin:20px 0 12px;border-bottom:1px solid var(--border)}
+  .tab{background:none;border:none;padding:10px 14px;font-size:14px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab span{font-size:11.5px;background:#eef0f6;color:var(--muted);border-radius:999px;padding:1px 7px;margin-left:4px}
 
-  table{width:100%;border-collapse:collapse;font-size:13.5px}
-  th{text-align:left;color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;padding:8px 12px;border-bottom:1px solid var(--border)}
-  td{padding:12px;border-bottom:1px solid var(--border);vertical-align:top}
+  /* ---- fixes */
+  .group{margin-bottom:18px}
+  .group h4{margin:0 0 2px;font-size:13.5px}
+  .group p{margin:0 0 8px;font-size:12px;color:var(--muted)}
+  .fix{background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:7px;display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:start;cursor:pointer;transition:border-color .15s}
+  .fix:hover{border-color:#c7cbe0}
+  .fix.on{border-color:#a5b4fc;box-shadow:0 0 0 2px rgba(99,102,241,.1)}
+  .fix input{margin-top:3px;width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .change{font-size:14px;font-weight:600}
+  .change .arrow{color:var(--muted);margin:0 6px;font-weight:400}
+  del{background:var(--red-bg);color:#991b1b;text-decoration:line-through;text-decoration-color:#e2a3a3;padding:0 3px;border-radius:4px}
+  ins{background:var(--green-bg);color:#14532d;text-decoration:none;padding:0 3px;border-radius:4px;font-weight:600}
+  .sentence{font-size:13.5px;font-weight:600;background:var(--green-bg);color:#14532d;border-radius:7px;padding:5px 8px;outline:none;cursor:text}
+  .sentence:focus{box-shadow:0 0 0 2px #86efac}
+  .ctx{font-size:12.5px;line-height:1.5;color:#40445a;margin-top:5px}
+  .why{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .why b{color:#40445a;font-weight:600}
+  .side{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+  .gain{font-weight:700;color:var(--green);font-size:12.5px;white-space:nowrap}
+  .gain.zero{color:var(--muted);font-weight:500}
+  .tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:#f1f2f6;color:#555;white-space:nowrap}
+  .tag.high,.tag.exact,.tag.Match{background:var(--green-bg);color:var(--green)}
+  .tag.medium,.tag.semantic,.tag.Partial{background:var(--amber-bg);color:var(--amber)}
+  .tag.check,.tag.missing,.tag.Missing{background:var(--red-bg);color:var(--red)}
+  .empty{padding:14px;text-align:center}
+
+  /* ---- swot */
+  .swot{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:760px){.swot{grid-template-columns:1fr}}
+  .quad{border-radius:12px;padding:14px 16px;border:1px solid var(--border);background:#fff}
+  .quad h4{margin:0 0 2px;font-size:14px}
+  .quad p{margin:0 0 8px;font-size:11.5px;color:var(--muted)}
+  .quad ul{margin:0;padding-left:18px}
+  .quad li{margin:5px 0;line-height:1.45;font-size:13px}
+  .quad.s{border-top:3px solid var(--green)} .quad.w{border-top:3px solid var(--red)}
+  .quad.o{border-top:3px solid var(--blue)} .quad.t{border-top:3px solid var(--amber)}
+
+  /* ---- semantic */
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:#f7f8fc;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
   tr:last-child td{border-bottom:none}
-  .req-cell{max-width:280px}
-  .imp-tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;margin-top:4px;display:inline-block}
-  .imp-tag.Required{background:#fde9e9;color:#b91c1c}
-  .imp-tag.Preferred{background:#e9f0ff;color:#1d4ed8}
-  .imp-tag.Standard{background:#f1f2f6;color:#555}
-  .badge{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;display:inline-block;white-space:nowrap}
-  .badge.Match{background:var(--green-bg);color:var(--green)}
-  .badge.Unclear{background:var(--amber-bg);color:var(--amber)}
-  .badge.Not.found, .badge[data-status="Not found"]{background:var(--red-bg);color:var(--red)}
-  .evidence-text{color:var(--text)}
-  .evidence-empty{color:var(--muted);font-style:italic}
-  .simbar-wrap{width:90px;height:6px;background:#eef0f6;border-radius:99px;overflow:hidden;margin-top:6px}
-  .simbar{height:100%;border-radius:99px}
-  .simval{font-size:10.5px;color:var(--muted);margin-top:3px}
+  .bar{height:6px;background:#eef0f6;border-radius:9px;overflow:hidden;width:90px;display:inline-block;vertical-align:middle;margin:0 6px}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .bar.kw i{background:#0ea5e9}
+  h5{font-size:14px;margin:22px 0 4px}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media (max-width:760px){.metrics,.kwmap{grid-template-columns:1fr!important}}
+  .metric{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+  .mval{font-size:24px;font-weight:800}
+  .mlabel{font-weight:700;font-size:13px}
+  .mbar{height:6px;background:#eef0f6;border-radius:9px;overflow:hidden;margin:8px 0 6px}
+  .mbar i{display:block;height:100%}
+  .mhint{font-size:11.5px;color:var(--muted);line-height:1.4}
+  .kwmap{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:10px}
+  .kwcol{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .kwcol h6{margin:0 0 8px;font-size:12.5px}
+  .kwcol.exact h6{color:var(--green)} .kwcol.semantic h6{color:var(--amber)} .kwcol.missing h6{color:var(--red)}
+  .kwcol h6 span{color:var(--muted);font-weight:500}
+  .kchip{display:inline-block;font-size:12px;padding:3px 8px;border-radius:999px;background:#f4f5fa;margin:0 4px 5px 0;border:1px solid transparent}
+  .kchip.req{border-color:#fca5a5}
+  .kchip small{color:var(--muted);margin-left:2px}
+  .kchip .arrow{color:var(--muted)}
+  .kwcol.exact .kchip{background:var(--green-bg);color:#14532d}
+  .kwcol.semantic .kchip{background:var(--amber-bg);color:#7a3e00}
+  .kwcol.missing .kchip{background:var(--red-bg);color:#991b1b}
+  .rcard{background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:7px}
+  .rhead{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+  .rtext{font-weight:600;font-size:13px}
+  .rbars{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 6px;font-size:12px;color:var(--muted)}
+  .rbars b{color:var(--text)}
+  .rline{font-size:12.5px;line-height:1.5;color:#40445a}
+  .rline .hit{background:var(--green-bg);color:#14532d;border-radius:3px;padding:0 2px}
+  .rmiss{margin-top:6px;font-size:12px;color:var(--muted)}
+  .rmiss .kchip{background:var(--red-bg);color:#991b1b;margin-left:4px}
 
-  .swot-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  @media (max-width:820px){.swot-grid{grid-template-columns:1fr}}
-  .swot-card{border-radius:var(--radius);padding:16px 18px;border:1px solid var(--border)}
-  .swot-card h4{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
-  .swot-card.s{background:var(--green-bg)}
-  .swot-card.w{background:var(--red-bg)}
-  .swot-card.o{background:var(--blue-bg)}
-  .swot-card.t{background:var(--amber-bg)}
-  .swot-card ul{margin:0;padding-left:18px;font-size:13px;line-height:1.7}
-  .swot-card .empty{color:var(--muted);font-size:12.5px;font-style:italic}
-
-  .sugg-card{border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:14px;background:#fff}
-  .sugg-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
-  .sugg-req{font-size:14px;font-weight:600}
-  .sugg-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
-  .panel{margin-top:10px;padding:12px 14px;border-radius:10px;background:#f8f9fc;font-size:13px;line-height:1.6;display:none}
-  .panel.open{display:block}
-  .panel textarea.mini{width:100%;min-height:60px;margin-top:8px;border-radius:8px;border:1px solid var(--border);padding:8px 10px;font-size:13px;font-family:inherit}
-  .diff{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;margin-top:6px}
-  @media (max-width:700px){.diff{grid-template-columns:1fr}}
-  .diff .box{padding:10px 12px;border-radius:8px;font-size:12.5px;line-height:1.55}
-  .diff .box.old{background:#fdecec;color:#7a1f1f;text-decoration:line-through;text-decoration-color:#e2a3a3}
-  .diff .box.new{background:#e9f9ee;color:#134d27}
-  .diff .arrow{align-self:center;color:var(--muted);font-size:16px}
-  .accept-row{display:flex;gap:8px;margin-top:10px}
-  .accepted-tag{font-size:11.5px;font-weight:700;color:var(--green);background:var(--green-bg);padding:4px 10px;border-radius:999px;display:inline-block;margin-top:8px}
-
-  .studio{display:grid;grid-template-columns:1fr 260px;gap:18px}
-  @media (max-width:900px){.studio{grid-template-columns:1fr}}
-  .resume-preview{white-space:pre-wrap;font-size:13px;line-height:1.7;background:#fbfbfe;border:1px solid var(--border);border-radius:10px;padding:14px;max-height:520px;overflow:auto}
-  .resume-preview mark{background:#dcfce7;padding:0 2px;border-radius:3px}
-  .side-card{display:flex;flex-direction:column;gap:12px}
-  .projected{border-radius:14px;padding:16px;text-align:center;border:1px solid var(--border)}
-  .projected .delta{font-size:26px;font-weight:800;margin:4px 0}
-  .projected .delta.up{color:var(--green)}
-  .projected .delta.flat{color:var(--muted)}
-  .projected small{color:var(--muted);font-size:11.5px}
-
-  .final-meta{font-size:12px;color:var(--muted);margin-bottom:8px}
-  .final-warning{font-size:12px;color:var(--amber);background:var(--amber-bg);padding:8px 10px;border-radius:8px;margin-bottom:8px;line-height:1.5}
-  #finalPdfPreview{width:100%;height:360px;border:1px solid var(--border);border-radius:8px;margin-bottom:4px}
-  #finalTextPreview{max-height:280px}
-
-  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:60px}
-  .spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;display:inline-block;vertical-align:-3px;margin-right:8px;animation:spin .7s linear infinite}
+  /* ---- result file */
+  details{margin-top:12px}
+  summary{cursor:pointer;font-weight:600;color:var(--accent);font-size:13px}
+  .preview{white-space:pre-wrap;font-size:12.5px;line-height:1.6;background:#fbfbfe;border:1px solid var(--border);border-radius:8px;padding:10px;max-height:360px;overflow:auto;margin-top:8px}
+  .filebox{margin-top:14px}
+  iframe{width:100%;height:520px;border:1px solid var(--border);border-radius:8px;margin-top:10px}
+  .warn{margin-top:8px;font-size:12.5px;color:#7a3e00;background:var(--amber-bg);padding:9px 11px;border-radius:8px;line-height:1.5}
+  .ok{margin-top:8px;font-size:12.5px;color:var(--green);font-weight:600}
+  .copyrow{display:flex;gap:8px;align-items:center;margin-top:6px}
+  .copyrow code{flex:1;background:#fff;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font:inherit;font-size:12.5px}
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:40px}
+  .spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;display:inline-block;vertical-align:-2px;animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <header class="top">
-    <div class="brand">
-      <div class="mark">S</div>
-      <div>
-        ShortlistAI
-        <small>resume ↔ job-description match &amp; rewrite</small>
-      </div>
-    </div>
-    <nav class="pill">prototype · local demo model</nav>
-  </header>
+  <header><div class="mark">S</div><b>ShortlistAI</b><span>Tune your resume to a job in a minute, keeping its layout</span></header>
 
-  <div class="hero">
-    <h1>See the gap. <span>Close it.</span></h1>
-    <p>Upload your resume and paste a job description. ShortlistAI finds the evidence for every requirement, scores your fit against a general ATS shortlist threshold, and helps you rewrite weak spots — with your sign-off on every change.</p>
-  </div>
-
-  <div class="input-grid">
+  <div class="inputs" id="inputs">
     <div class="card">
-      <h3><span class="n">1</span> Your resume</h3>
-      <p class="hint">Upload a PDF, DOCX, or TXT file — bullet points work best.</p>
-
-      <div id="resumeDropzone" class="dropzone" tabindex="0">
-        <input type="file" id="resumeFileInput" accept=".pdf,.docx,.txt" hidden />
-        <div id="dzIdle" class="dz-state">
-          <div class="dz-icon">⬆️</div>
-          <div class="dz-title">Click to upload or drag and drop</div>
-          <div class="dz-sub">PDF, DOCX, or TXT — up to 8MB</div>
-        </div>
-        <div id="dzLoading" class="dz-state" hidden>
-          <span class="spinner dark"></span> Extracting text…
-        </div>
-        <div id="dzLoaded" class="dz-state" hidden>
-          <div class="dz-file">
-            <span class="dz-file-icon">📄</span>
-            <div>
-              <div class="dz-filename" id="dzFilename"></div>
-              <div class="dz-filemeta" id="dzFilemeta"></div>
-            </div>
-          </div>
-          <div class="dz-actions">
-            <button type="button" class="btn-small" onclick="togglePreview(event)">Preview text</button>
-            <button type="button" class="btn-small danger" onclick="clearResumeFile(event)">Remove</button>
-          </div>
-        </div>
-        <div id="dzError" class="dz-state dz-error-state" hidden></div>
+      <h3>1 · Your resume</h3>
+      <div id="dropzone" class="dropzone" tabindex="0">
+        <input type="file" id="fileInput" accept=".pdf,.docx,.tex,.txt" hidden />
+        <b id="dzTitle">Upload or drop your resume</b>
+        <span class="sub" id="dzSub">PDF, Word, LaTeX (.tex) or TXT · up to 8 MB</span>
       </div>
-      <div id="resumePreviewBox" class="resume-text-preview" hidden></div>
-
-      <textarea id="resumeText" placeholder="Paste your resume text here..." hidden></textarea>
-      <div class="charcount" id="resumeCharcountWrap" hidden><span id="resumeCount">0</span> characters</div>
-
-      <button type="button" class="link-btn" id="pasteToggleBtn" onclick="togglePasteMode()">Paste text instead</button>
+      <textarea id="resumeInput" placeholder="Paste your resume text…" hidden></textarea>
+      <button class="link" id="modeBtn" onclick="togglePaste()">Paste text instead</button>
     </div>
     <div class="card">
-      <h3><span class="n">2</span> Job description</h3>
-      <p class="hint">Paste the full posting, requirements and all.</p>
-      <textarea id="jdText" placeholder="Paste the job description here..."></textarea>
-      <div class="charcount"><span id="jdCount">0</span> characters</div>
+      <h3>2 · Job description</h3>
+      <textarea id="jdInput" placeholder="Paste the full job posting…"></textarea>
     </div>
   </div>
 
   <div class="actions">
-    <button class="btn-primary" id="analyzeBtn" onclick="runAnalyze()">Analyze match</button>
-    <button class="btn-ghost" onclick="loadExample()">Try an example</button>
+    <button class="btn primary big" id="analyzeBtn" onclick="runAnalyze()">Analyze match</button>
+    <button class="btn big" id="exampleBtn" onclick="loadExample()">Try an example</button>
   </div>
+  <div id="errorBox" class="error" hidden></div>
 
-  <div id="errorBox" class="error-box" style="display:none"></div>
-
-  <div id="results">
-
-    <div class="score-row">
-      <div class="card gauge-card">
-        <div class="gauge">
-          <svg class="gauge-arc-svg" width="170" height="170" viewBox="0 0 170 170">
-            <circle cx="85" cy="85" r="72" fill="none" stroke="#eef0f6" stroke-width="14"/>
-            <circle id="gaugeArc" cx="85" cy="85" r="72" fill="none" stroke="#16a34a" stroke-width="14"
-                    stroke-linecap="round" stroke-dasharray="452" stroke-dashoffset="452"
-                    style="transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1), stroke 1s"/>
-          </svg>
-          <svg class="gauge-target-overlay" width="170" height="170" viewBox="0 0 170 170">
-            <line id="targetTick" x1="0" y1="0" x2="0" y2="0" stroke="#1c1f2b" stroke-width="3" stroke-linecap="round"/>
-          </svg>
-          <div class="pct"><b id="scorePct">0%</b><span>match estimate</span></div>
-        </div>
-        <div class="gauge-label" id="scoreWord">—</div>
-        <div class="target-line">🎯 Target: <span id="targetPctLabel">75</span>%+ (general guideline)</div>
-        <div class="target-badge" id="scoreTargetBadge"></div>
-      </div>
-
-      <div class="card summary-card">
-        <div class="counts">
-          <div class="count-pill match"><b id="cMatch">0</b><span>Matched</span></div>
-          <div class="count-pill unclear"><b id="cUnclear">0</b><span>Unclear</span></div>
-          <div class="count-pill notfound"><b id="cNotfound">0</b><span>Not found</span></div>
-        </div>
-        <details class="methodology">
-          <summary>How is this score calculated?</summary>
-          <p id="methodText"></p>
-          <p id="targetNoteText"></p>
-        </details>
-      </div>
-    </div>
-
-    <div class="section-title"><h2>Requirement-by-requirement evidence</h2><div class="line"></div></div>
-    <div class="card" style="overflow-x:auto">
-      <table>
-        <thead><tr><th>Requirement</th><th>Status</th><th>Evidence in your resume</th></tr></thead>
-        <tbody id="evidenceBody"></tbody>
-      </table>
-    </div>
-
-    <div class="section-title"><h2>SWOT analysis</h2><div class="line"></div></div>
-    <div class="swot-grid">
-      <div class="swot-card s"><h4>💪 Strengths</h4><ul id="swotS"></ul></div>
-      <div class="swot-card w"><h4>⚠️ Weaknesses</h4><ul id="swotW"></ul></div>
-      <div class="swot-card o"><h4>🌱 Opportunities</h4><ul id="swotO"></ul></div>
-      <div class="swot-card t"><h4>🚩 Threats</h4><ul id="swotT"></ul></div>
-    </div>
-
-    <div class="section-title"><h2>Resume Rewrite Studio</h2><div class="line"></div></div>
-    <p class="hint" style="margin:-6px 0 16px;color:var(--muted);font-size:13px">
-      For every gap, pick a suggestion, confirm it reflects real experience, then edit or accept it. Accepted changes update the resume preview and the projected score on the right — live. Aim to push the projected score past the target line above.
-    </p>
-    <div class="studio">
+  <div id="results" hidden>
+    <!-- Score, what the selected fixes do, and the two actions that matter. -->
+    <div class="card summary">
+      <div class="ring" id="ring"><div><span id="scorePct">0%</span><small>ATS match</small></div></div>
       <div>
-        <div id="suggestionsList"></div>
+        <div class="headline" id="headline"></div>
+        <div class="chips" id="chips"></div>
+        <div class="note" id="formatNote"></div>
       </div>
-      <div class="side-card">
-        <div class="projected card">
-          <small>PROJECTED MATCH SCORE</small>
-          <div class="delta flat" id="projDelta">+0%</div>
-          <small id="projFrom">current: 0% → projected: 0%</small>
-          <div class="target-badge" id="projTargetBadge"></div>
-        </div>
-        <div class="card">
-          <h3 style="margin-bottom:8px">Working draft</h3>
-          <p class="hint" style="margin-top:-4px">Plain text — updates live as you accept suggestions.</p>
-          <div class="resume-preview" id="resumePreview"></div>
-          <div class="accept-row">
-            <button class="btn-small" onclick="copyResume()">Copy text</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-bottom:2px">Final resume</h3>
-          <p class="hint" style="margin-top:-2px">Same file format and page count as your upload.</p>
-          <button class="btn-small primary" style="width:100%;justify-content:center;margin:6px 0 10px" onclick="generateFinalResume(event)">🔍 Generate preview</button>
-          <div id="finalMeta" class="final-meta" hidden></div>
-          <div id="finalWarning" class="final-warning" hidden></div>
-          <div id="finalPreviewWrap" hidden>
-            <iframe id="finalPdfPreview" title="Final resume preview" hidden></iframe>
-            <div id="finalTextPreview" class="resume-preview" hidden></div>
-          </div>
-          <div class="accept-row" id="finalActions" hidden>
-            <button class="btn-small primary" onclick="downloadFinalResume()">⬇ Download final resume</button>
-          </div>
-        </div>
+      <div class="cta">
+        <button class="btn primary big" id="planBtn" onclick="selectPlan()">⚡ Apply best fixes</button>
+        <button class="btn big" id="downloadBtn" onclick="downloadResume()">⬇ Download</button>
+        <button class="link" onclick="newJob()" style="padding:0">Check another job →</button>
       </div>
     </div>
 
+    <div class="tabs">
+      <button class="tab on" data-tab="fixes" onclick="showTab('fixes')">Fixes <span id="fixCount"></span></button>
+      <button class="tab" data-tab="swot" onclick="showTab('swot')">SWOT</button>
+      <button class="tab" data-tab="semantic" onclick="showTab('semantic')">Semantic analysis</button>
+    </div>
+
+    <div id="tab-fixes">
+      <div id="fixes"></div>
+      <details id="previewBox"><summary>See all changes in your resume</summary><div class="preview" id="preview"></div></details>
+      <div class="filebox" id="filebox" hidden>
+        <div class="ok" id="exportOk" hidden></div>
+        <div class="warn" id="copyBox" hidden></div>
+        <div class="warn" id="exportWarn" hidden></div>
+        <iframe id="pdfFrame" title="Edited resume preview" hidden></iframe>
+      </div>
+    </div>
+
+    <div id="tab-swot" hidden>
+      <div class="swot">
+        <div class="quad s"><h4>Strengths</h4><p>What already matches this job</p><ul id="swot-strengths"></ul></div>
+        <div class="quad w"><h4>Weaknesses</h4><p>What the job wants that your resume doesn't show</p><ul id="swot-weaknesses"></ul></div>
+        <div class="quad o"><h4>Opportunities</h4><p>The fixes worth the most points</p><ul id="swot-opportunities"></ul></div>
+        <div class="quad t"><h4>Threats</h4><p>What could get you filtered out</p><ul id="swot-threats"></ul></div>
+      </div>
+    </div>
+
+    <div id="tab-semantic" hidden>
+      <div class="metrics" id="semMetrics"></div>
+
+      <h5>Keyword map</h5>
+      <p class="muted" style="margin:0 0 8px">Every keyword the JD asks for, checked against your resume. An ATS
+        counts exact words, so keywords found only <b>by meaning</b> are worth switching to the JD's wording.</p>
+      <div class="kwmap">
+        <div class="kwcol exact"><h6>✓ As written <span id="kwExactN"></span></h6><div id="kwExact"></div></div>
+        <div class="kwcol semantic"><h6>≈ By meaning <span id="kwSemN"></span></h6><div id="kwSem"></div></div>
+        <div class="kwcol missing"><h6>✗ Missing <span id="kwMissN"></span></h6><div id="kwMiss"></div></div>
+      </div>
+
+      <h5>Requirement by requirement</h5>
+      <p class="muted" style="margin:0 0 8px"><b>Meaning</b> is how close your best line is to the requirement
+        (sentence embeddings). <b>Keywords</b> is the share of its words you use exactly. Weakest first.</p>
+      <div id="reqCards"></div>
+    </div>
   </div>
 
-  <footer>
-    Prototype demo — semantic matching via a local MiniLM sentence-embedding model. Scores and suggestions are heuristic guidance, not a guarantee of any employer's real ATS outcome.
-  </footer>
+  <footer>Heuristic estimate from a local sentence-embedding model, not any employer's actual ATS.</footer>
 </div>
 
 <script>
-const dropzone = document.getElementById('resumeDropzone');
-const fileInput = document.getElementById('resumeFileInput');
-const dzIdle = document.getElementById('dzIdle');
-const dzLoading = document.getElementById('dzLoading');
-const dzLoaded = document.getElementById('dzLoaded');
-const dzError = document.getElementById('dzError');
-const resumePreviewBox = document.getElementById('resumePreviewBox');
-const resumeTextArea = document.getElementById('resumeText');
-const resumeCharcountWrap = document.getElementById('resumeCharcountWrap');
-const pasteToggleBtn = document.getElementById('pasteToggleBtn');
-const jdEl = document.getElementById('jdText');
+const $ = id => document.getElementById(id);
+const dropzone = $('dropzone'), fileInput = $('fileInput'), resumeInput = $('resumeInput'), jdInput = $('jdInput');
 
-let lastData = null;
-let workingResume = '';
-let acceptedCount = 0;
-let addedBullets = [];  // accepted bullets with no existing line to replace
-let resumeText = '';
-let resumeFilename = '';
-let pasteMode = false;
-let resumeId = null;
-let originalFormat = 'txt';
-let originalPageCount = 1;
-let lastFinalBlob = null;
-let lastFinalFilename = '';
+let resumeText = '', resumeId = null, resumeFormat = 'txt', pasteMode = false;
+let analysis = null, edits = [], projected = null, previewTimer = null, previewSeq = 0, fileUrl = null;
 
-const MIME_TYPES = {
-  pdf: 'application/pdf',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  txt: 'text/plain',
-};
+const esc = s => (s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const FORMAT_NAMES = {pdf: 'PDF', docx: 'Word', tex: 'LaTeX', txt: 'text'};
 
-jdEl.addEventListener('input', () => document.getElementById('jdCount').textContent = jdEl.value.length);
-resumeTextArea.addEventListener('input', () => {
-  resumeText = resumeTextArea.value;
-  document.getElementById('resumeCount').textContent = resumeText.length;
-});
-
-function showDzState(state){
-  [dzIdle, dzLoading, dzLoaded, dzError].forEach(el => el.hidden = true);
-  state.hidden = false;
+async function post(url, body){
+  const res = await fetch(url, body instanceof FormData ? {method:'POST', body}
+    : {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.detail || 'Something went wrong.');
+  return data;
 }
 
-dropzone.addEventListener('click', () => { if(!pasteMode) fileInput.click(); });
-dropzone.addEventListener('keydown', (e) => {
-  if((e.key === 'Enter' || e.key === ' ') && !pasteMode){ e.preventDefault(); fileInput.click(); }
-});
-dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
-dropzone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropzone.classList.remove('drag');
-  if(e.dataTransfer.files && e.dataTransfer.files[0]) handleResumeFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', () => {
-  if(fileInput.files && fileInput.files[0]) handleResumeFile(fileInput.files[0]);
-});
+function showError(msg){ $('errorBox').textContent = msg; $('errorBox').hidden = !msg; }
 
-async function handleResumeFile(file){
-  hideError();
-  showDzState(dzLoading);
-  resumePreviewBox.hidden = true;
+// ---------------------------------------------------------------- inputs
+
+function setDropzone(title, sub, isError=false){
+  $('dzTitle').textContent = title;
+  $('dzSub').textContent = sub;
+  dropzone.classList.toggle('error', isError);
+}
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); } });
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('drag'); if(e.dataTransfer.files[0]) uploadResume(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => { if(fileInput.files[0]) uploadResume(fileInput.files[0]); fileInput.value = ''; });
+resumeInput.addEventListener('input', () => { resumeText = resumeInput.value; });
+
+async function uploadResume(file){
+  showError('');
+  setDropzone('Reading ' + file.name + '…', '');
   const form = new FormData();
   form.append('file', file);
   try{
-    const res = await fetch('/api/extract-resume', {method:'POST', body: form});
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.detail || 'Could not read that file.');
+    const data = await post('/api/extract-resume', form);
     resumeText = data.text;
-    resumeFilename = data.filename || file.name;
     resumeId = data.resume_id;
-    originalFormat = data.format;
-    originalPageCount = data.page_count;
-    document.getElementById('dzFilename').textContent = resumeFilename;
-    document.getElementById('dzFilemeta').textContent = `${resumeText.length} characters extracted · ${data.format.toUpperCase()} · ${data.page_count} page(s)`;
-    showDzState(dzLoaded);
+    resumeFormat = data.format;
+    setDropzone('📄 ' + data.filename, `${FORMAT_NAMES[data.format]} · ${data.page_count} page(s) · click to replace`);
   }catch(err){
-    resumeText = '';
-    resumeId = null;
-    dzError.textContent = err.message || 'Upload failed. Please try a different file.';
-    showDzState(dzError);
+    resumeText = ''; resumeId = null; resumeFormat = 'txt';
+    setDropzone('Upload or drop your resume', err.message, true);
   }
 }
 
-function clearResumeFile(e){
-  e.stopPropagation();
-  resumeText = '';
-  resumeFilename = '';
-  resumeId = null;
-  originalFormat = 'txt';
-  originalPageCount = 1;
-  fileInput.value = '';
-  resumePreviewBox.hidden = true;
-  showDzState(dzIdle);
-}
-
-function togglePreview(e){
-  e.stopPropagation();
-  resumePreviewBox.hidden = !resumePreviewBox.hidden;
-  if(!resumePreviewBox.hidden) resumePreviewBox.textContent = resumeText;
-}
-
-function togglePasteMode(){
+function togglePaste(){
   pasteMode = !pasteMode;
   dropzone.hidden = pasteMode;
-  resumePreviewBox.hidden = true;
-  resumeCharcountWrap.hidden = !pasteMode;
-  resumeTextArea.hidden = !pasteMode;
-  pasteToggleBtn.textContent = pasteMode ? 'Upload a file instead' : 'Paste text instead';
+  resumeInput.hidden = !pasteMode;
+  $('modeBtn').textContent = pasteMode ? 'Upload a file instead' : 'Paste text instead';
   if(pasteMode){
-    resumeTextArea.value = resumeText;
-    document.getElementById('resumeCount').textContent = resumeText.length;
-    resumeTextArea.focus();
-    // free-typed text can no longer be mapped back onto the original file's paragraphs
-    resumeId = null;
-    originalFormat = 'txt';
-    originalPageCount = 1;
+    resumeInput.value = resumeText;
+    resumeId = null; resumeFormat = 'txt';  // typed text no longer maps to the uploaded file
+    resumeInput.focus();
   }
 }
 
 const EXAMPLE_RESUME = `Jordan Reyes
 Software Engineer
-
+jordan@example.com | linkedin.com/in/jreyes
+Experience
+Acme Logistics	Jan 2022 - Present
 - Built and maintained internal web tools using Python and Flask for a 12-person operations team.
-- Wrote SQL queries and simple dashboards to track shipment delays.
+- Wrote SQL queries and simple dashboards on Postgres to track shipment delays.
 - Collaborated with product managers to define feature requirements.
 - Mentored two junior developers during a six month internship program.
 - Automated a manual reporting process, saving roughly 5 hours per week.
-- Comfortable working in a fast-paced startup environment with shifting priorities.
-- Familiar with Git and basic CI pipelines for small projects.`;
+- Familiar with Git and basic CI pipelines for small projects; wrote unit tests with pytest.
+Skills
+Languages: Python, SQL, JavaScript
+Tools: Git, Flask, Jira`;
 
 const EXAMPLE_JD = `We are hiring a Backend Engineer to join our platform team.
 
@@ -521,6 +337,7 @@ Requirements:
 - Strong knowledge of relational databases such as PostgreSQL
 - Experience with Docker and containerized deployments
 - Ability to write and maintain automated tests
+- Experience with CI/CD pipelines
 - Preferred: experience with Kubernetes
 - Preferred: exposure to a microservices architecture
 - Excellent communication skills and ability to work with cross-functional teams
@@ -528,412 +345,323 @@ Requirements:
 
 function loadExample(){
   resumeText = EXAMPLE_RESUME;
-  resumeFilename = 'example-resume.txt';
-  resumeId = null;
-  originalFormat = 'txt';
-  originalPageCount = 1;
-  if(pasteMode){
-    resumeTextArea.value = EXAMPLE_RESUME;
-    document.getElementById('resumeCount').textContent = EXAMPLE_RESUME.length;
-  }else{
-    document.getElementById('dzFilename').textContent = resumeFilename;
-    document.getElementById('dzFilemeta').textContent = `${resumeText.length} characters — example resume`;
-    showDzState(dzLoaded);
-  }
-  jdEl.value = EXAMPLE_JD;
-  jdEl.dispatchEvent(new Event('input'));
+  resumeId = null; resumeFormat = 'txt';
+  if(pasteMode) resumeInput.value = EXAMPLE_RESUME;
+  else setDropzone('📄 example-resume.txt', 'Example resume · click to replace');
+  jdInput.value = EXAMPLE_JD;
 }
 
-function showError(msg){
-  const box = document.getElementById('errorBox');
-  box.textContent = msg;
-  box.style.display = 'block';
+// Keeps the resume, clears the job: the quick path for applying to the next role.
+function newJob(){
+  jdInput.value = '';
+  $('results').hidden = true;
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  jdInput.focus();
 }
-function hideError(){ document.getElementById('errorBox').style.display = 'none'; }
+
+// ---------------------------------------------------------------- analysis
 
 async function runAnalyze(){
-  hideError();
-  const resume_text = resumeText.trim();
-  const jd_text = jdEl.value.trim();
-  if(!resume_text || !jd_text){
-    showError('Please upload (or paste) a resume, and paste a job description.');
-    return;
-  }
-  const btn = document.getElementById('analyzeBtn');
+  showError('');
+  if(!resumeText.trim() || !jdInput.value.trim()) return showError('Add a resume and a job description first.');
+  const btn = $('analyzeBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Analyzing…';
+  btn.innerHTML = '<span class="spinner"></span> Analyzing…';
   try{
-    const res = await fetch('/api/analyze', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({resume_text, jd_text})
-    });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.detail || 'Analysis failed.');
-    lastData = data;
-    workingResume = resume_text;
-    acceptedCount = 0;
-    addedBullets = [];
-    render(data);
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('results').classList.add('fade-in');
-    document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+    analysis = await post('/api/analyze', {resume_text: resumeText, jd_text: jdInput.value});
+    edits = analysis.edits;
+    projected = null;
+    renderAll();
+    showTab('fixes');
+    $('results').hidden = false;
+    $('results').scrollIntoView({behavior:'smooth'});
+    refreshPreview();
   }catch(err){
-    showError(err.message || 'Something went wrong talking to the backend.');
+    showError(err.message);
   }finally{
     btn.disabled = false;
     btn.textContent = 'Analyze match';
   }
 }
 
-function statusColor(status){
-  if(status==='Match') return '#16a34a';
-  if(status==='Unclear') return '#d97706';
-  return '#dc2626';
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  ['fixes', 'swot', 'semantic'].forEach(t => { $('tab-' + t).hidden = t !== name; });
 }
 
-function render(data){
-  renderScore(data.score);
-  renderTable(data.requirements);
-  renderSwot(data.swot);
-  renderSuggestions(data.suggestions);
-  renderResumePreview();
-  updateProjection(data.score);
-  resetFinalPreview();
+function renderAll(){
+  renderSummary();
+  renderFixes();
+  renderSwot();
+  renderSemantic();
+  resetFile();
 }
 
-function resetFinalPreview(){
-  lastFinalBlob = null;
-  lastFinalFilename = '';
-  document.getElementById('finalMeta').hidden = true;
-  document.getElementById('finalWarning').hidden = true;
-  document.getElementById('finalPreviewWrap').hidden = true;
-  document.getElementById('finalActions').hidden = true;
-  document.getElementById('finalPdfPreview').hidden = true;
-  document.getElementById('finalTextPreview').hidden = true;
+function scoreColor(p, target){
+  return p >= target ? 'var(--green)' : p >= target * 0.65 ? 'var(--amber)' : 'var(--red)';
 }
 
-function renderTargetMarker(targetPct){
-  const cx = 85, cy = 85, rInner = 63, rOuter = 81;
-  const theta = (targetPct / 100) * 2 * Math.PI;
-  const x1 = cx + rInner * Math.sin(theta), y1 = cy - rInner * Math.cos(theta);
-  const x2 = cx + rOuter * Math.sin(theta), y2 = cy - rOuter * Math.cos(theta);
-  const tick = document.getElementById('targetTick');
-  tick.setAttribute('x1', x1); tick.setAttribute('y1', y1);
-  tick.setAttribute('x2', x2); tick.setAttribute('y2', y2);
+function renderSummary(){
+  const s = analysis.score, now = projected || s, target = s.target_percent;
+  $('ring').style.setProperty('--p', now.percent);
+  $('ring').style.setProperty('--c', scoreColor(now.percent, target));
+  $('scorePct').textContent = now.percent + '%';
+
+  const n = selectedEdits().length;
+  const diff = now.percent - s.percent;
+  $('headline').innerHTML = !n
+    ? (s.meets_target ? `You're above the ${target}% target already.` : `${s.percent}% now. Aim for ${target}% to pass most ATS filters.`)
+    : `With ${n} fix${n > 1 ? 'es' : ''}: ${s.percent}% → <span class="up">${now.percent}%</span>`
+      + (now.meets_target ? ' ✓ above target' : ` (target ${target}%)`);
+  $('chips').innerHTML = [
+    `<span class="chip">JD keywords present <b>${now.keyword_percent}%</b></span>`,
+    `<span class="chip">Semantic match <b>${now.semantic_percent}%</b></span>`,
+    `<span class="chip">Requirements met <b>${now.counts.Match}/${now.total_requirements}</b></span>`,
+  ].join('');
+  $('formatNote').textContent = resumeId
+    ? (resumeFormat === 'pdf'
+        ? 'Download edits your original PDF in place: same fonts and alignment. New lines are fitted in by moving the content below them down.'
+        : `Download edits your original ${FORMAT_NAMES[resumeFormat]} file in place, in its own style.`)
+    : 'Pasted text downloads as .txt. Upload your PDF, Word or LaTeX file to keep its layout.';
+  $('planBtn').hidden = s.meets_target || !analysis.plan.edit_ids.length;
+  $('planBtn').title = analysis.plan.reaches_target
+    ? `Selects the ${analysis.plan.edit_ids.length} fixes that reach about ${analysis.plan.percent}%`
+    : `Selects every fix that helps (about ${analysis.plan.percent}%)`;
 }
 
-function setTargetBadge(elId, meets){
-  const el = document.getElementById(elId);
-  el.textContent = meets ? '🎯 Meets target' : '🎯 Below target';
-  el.className = 'target-badge ' + (meets ? 'pass' : 'fail');
+// ---------------------------------------------------------------- fixes
+
+const GROUPS = [
+  {kind: 'replace', title: 'Swap a word', help: 'Use the JD\'s word for something your resume already says.'},
+  {kind: 'add', title: 'Add to your skills', help: 'Missing JD keywords, added to the end of a Skills line. Only add what you know.'},
+  {kind: 'sentence', title: 'Add a short bullet', help: 'One-line bullets in the JD\'s words for requirements your resume doesn\'t cover. Click the text to edit it so it\'s true for you.'},
+];
+const CONF_LABEL = {high: 'Same meaning', medium: 'Check wording', check: 'Only if true'};
+
+function stripBullet(line){ return line.replace(/^\s*[-*•‣▪●○◦■□➢►–]\s*/, ''); }
+
+// The line with the change shown in place: old word struck out, new one highlighted.
+function inContext(e){
+  const line = stripBullet(e.line);
+  if(e.kind === 'add') return `${esc(line.replace(/[\s.]+$/, ''))}, <ins>${esc(e.new)}</ins>`;
+  const at = line.indexOf(e.old);
+  if(at < 0) return esc(line);
+  return esc(line.slice(0, at)) + `<del>${esc(e.old)}</del> <ins>${esc(e.new)}</ins>` + esc(line.slice(at + e.old.length));
 }
 
-function renderScore(score){
-  const pct = score.percent;
-  document.getElementById('scorePct').textContent = pct + '%';
-  const circumference = 452;
-  const offset = circumference - (circumference * Math.min(pct,100) / 100);
-  const arc = document.getElementById('gaugeArc');
-  arc.setAttribute('stroke-dashoffset', offset);
-  let color = '#dc2626', word = 'Needs work';
-  if(pct >= score.target_percent){ color = '#16a34a'; word = 'Strong match'; }
-  else if(pct >= score.target_percent * 0.65){ color = '#d97706'; word = 'Partial match'; }
-  arc.setAttribute('stroke', color);
-  document.getElementById('scoreWord').textContent = word;
-  document.getElementById('cMatch').textContent = score.counts.Match;
-  document.getElementById('cUnclear').textContent = score.counts.Unclear;
-  document.getElementById('cNotfound').textContent = score.counts['Not found'];
-  document.getElementById('methodText').textContent = score.methodology;
-  document.getElementById('targetNoteText').textContent = score.target_note;
-  document.getElementById('targetPctLabel').textContent = score.target_percent;
-  renderTargetMarker(score.target_percent);
-  setTargetBadge('scoreTargetBadge', score.meets_target);
+function fixCard(e){
+  const where = e.kind === 'sentence'
+    ? `<div class="ctx muted">Goes under: “${esc(stripBullet(e.line))}”</div>`
+    : `<div class="ctx">${inContext(e)}</div>`;
+  const change = e.kind === 'replace'
+    ? `<div class="change"><del>${esc(e.old)}</del><span class="arrow">→</span><ins>${esc(e.new)}</ins></div>`
+    : e.kind === 'add'
+      ? `<div class="change"><span class="arrow" style="margin-left:0">+</span><ins>${esc(e.new)}</ins></div>`
+      : `<div class="sentence" contenteditable="true" spellcheck="true" onclick="event.preventDefault();event.stopPropagation()"
+           oninput="editSentence(${e.id}, this.textContent)">${esc(e.new)}</div>`;
+  return `
+    <div class="fix ${e.selected ? 'on' : ''}" id="fix-${e.id}" onclick="toggleFix(${e.id})">
+      <input type="checkbox" ${e.selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleFix(${e.id})" aria-label="Use this fix" />
+      <div>
+        ${change}
+        ${where}
+        <div class="why"><b>Why:</b> ${esc(e.reason)}</div>
+      </div>
+      <div class="side">
+        <span class="gain ${e.gain > 0 ? '' : 'zero'}">${e.gain > 0 ? '+' + e.gain + ' pts' : 'keeps wording exact'}</span>
+        <span class="tag ${e.confidence}">${CONF_LABEL[e.confidence]}</span>
+        ${e.importance === 'Required' ? '<span class="tag Missing">Required</span>' : ''}
+      </div>
+    </div>`;
 }
 
-function badgeHtml(status){
-  const cls = status.replace(' ', '');
-  return `<span class="badge ${cls}" data-status="${status}">${status}</span>`;
-}
-
-function renderTable(requirements){
-  const body = document.getElementById('evidenceBody');
-  body.innerHTML = '';
-  requirements.forEach(r => {
-    const tr = document.createElement('tr');
-    const pct = Math.round(r.similarity*100);
-    const color = statusColor(r.status);
-    tr.innerHTML = `
-      <td class="req-cell">${escapeHtml(r.requirement)}<br><span class="imp-tag ${r.importance}">${r.importance}</span></td>
-      <td>${badgeHtml(r.status)}
-        <div class="simbar-wrap"><div class="simbar" style="width:${pct}%;background:${color}"></div></div>
-        <div class="simval">${pct}% match confidence</div>
-      </td>
-      <td>${r.evidence ? `<span class="evidence-text">"${escapeHtml(r.evidence)}"</span>` : '<span class="evidence-empty">No related content found</span>'}</td>
-    `;
-    body.appendChild(tr);
-  });
-}
-
-function swotItem(r){
-  const li = document.createElement('li');
-  li.innerHTML = `<b>${escapeHtml(r.requirement)}</b>` + (r.evidence ? ` — <span style="color:var(--muted)">"${escapeHtml(r.evidence)}"</span>` : '');
-  return li;
-}
-function fillSwot(id, items){
-  const ul = document.getElementById(id);
-  ul.innerHTML = '';
-  if(!items.length){
-    const li = document.createElement('li');
-    li.className='empty';
-    li.textContent = 'Nothing here — good sign or nothing flagged yet.';
-    li.style.listStyle = 'none';
-    li.style.marginLeft = '-18px';
-    ul.appendChild(li);
+function renderFixes(){
+  $('fixCount').textContent = edits.length;
+  if(!edits.length){
+    $('fixes').innerHTML = '<div class="card empty muted">Nothing to fix: your resume already uses the JD\'s keywords.</div>';
     return;
   }
-  items.forEach(r => ul.appendChild(swotItem(r)));
-}
-function renderSwot(swot){
-  fillSwot('swotS', swot.strengths);
-  fillSwot('swotW', swot.weaknesses);
-  fillSwot('swotO', swot.opportunities);
-  fillSwot('swotT', swot.threats);
+  $('fixes').innerHTML = GROUPS.map(g => {
+    const list = edits.filter(e => e.kind === g.kind).sort((a, b) => b.gain - a.gain);
+    return list.length ? `<div class="group"><h4>${g.title} (${list.length})</h4><p>${g.help}</p>${list.map(fixCard).join('')}</div>` : '';
+  }).join('');
 }
 
-function renderSuggestions(suggestions){
-  const list = document.getElementById('suggestionsList');
-  list.innerHTML = '';
-  if(!suggestions.length){
-    list.innerHTML = '<div class="card">Every requirement matched — nothing to improve. 🎉</div>';
-    return;
+function selectedEdits(){ return edits.filter(e => e.selected); }
+
+function toggleFix(id){
+  const e = edits.find(x => x.id === id);
+  e.selected = !e.selected;
+  const card = $(`fix-${id}`);
+  card.classList.toggle('on', e.selected);
+  card.querySelector('input').checked = e.selected;
+  refreshPreview();
+}
+
+function editSentence(id, text){
+  const e = edits.find(x => x.id === id);
+  e.new = text.trim();
+  if(e.selected) refreshPreview();
+}
+
+function selectPlan(){
+  const ids = new Set(analysis.plan.edit_ids);
+  edits.forEach(e => { e.selected = e.selected || ids.has(e.id); });
+  renderFixes();
+  refreshPreview();
+}
+
+// Re-scores the resume with the selected fixes (debounced) and shows them in place.
+function refreshPreview(){
+  resetFile();
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    const seq = ++previewSeq;
+    try{
+      const data = await post('/api/preview-edits',
+        {resume_text: analysis.resume_text, jd_text: jdInput.value, edits: selectedEdits()});
+      if(seq !== previewSeq) return;  // a newer selection is already on its way
+      projected = selectedEdits().length ? data.score : null;
+      renderSummary();
+      renderPreview(data.lines);
+    }catch(err){ showError(err.message); }
+  }, 250);
+}
+
+function renderPreview(lines){
+  const changed = lines.some(segs => segs.some(s => 'ins' in s));
+  $('previewBox').hidden = !changed;
+  $('preview').innerHTML = lines.map(segs => segs.map(s => 'ins' in s
+      ? (s.del.trim() ? `<del>${esc(s.del)}</del>` : esc(s.del)) + (s.ins.trim() ? `<ins>${esc(s.ins)}</ins>` : esc(s.ins))
+      : esc(s.t)).join('')).join('\n');
+}
+
+// ---------------------------------------------------------------- SWOT & semantic
+
+function renderSwot(){
+  for(const k of ['strengths', 'weaknesses', 'opportunities', 'threats']){
+    const items = analysis.swot[k];
+    $('swot-' + k).innerHTML = items.length ? items.map(i => `<li>${esc(i)}</li>`).join('') : '<li class="muted">Nothing here.</li>';
   }
-  suggestions.forEach((s, idx) => {
-    const card = document.createElement('div');
-    card.className = 'sugg-card';
-    card.id = `sugg-${idx}`;
-    card.innerHTML = `
-      <div class="sugg-head">
-        <div>
-          <div class="sugg-req">${escapeHtml(s.requirement)}</div>
-          <span class="imp-tag ${s.importance}">${s.importance}</span> ${badgeHtml(s.status)}
-        </div>
-      </div>
-      <div class="sugg-btns">
-        ${s.improve_wording ? `<button class="btn-small primary" onclick="togglePanel(${idx},'improve')">✏️ Improve wording</button>` : ''}
-        <button class="btn-small" onclick="togglePanel(${idx},'ask')">💬 Ask me about this skill</button>
-        <button class="btn-small" onclick="togglePanel(${idx},'explain')">❓ Explain this gap</button>
-      </div>
-      <div class="panel" id="panel-${idx}-explain">${escapeHtml(s.explain_gap)}</div>
-      <div class="panel" id="panel-${idx}-improve">
-        ${s.improve_wording ? `
-          <div class="diff">
-            <div class="box old">${escapeHtml(s.improve_wording.original)}</div>
-            <div class="arrow">→</div>
-            <div class="box new" id="improve-text-${idx}" contenteditable="true">${escapeHtml(s.improve_wording.suggested)}</div>
-          </div>
-          <div class="accept-row">
-            <button class="btn-small primary" onclick="acceptImprove(${idx}, '${b64(s.requirement)}', '${b64(s.improve_wording.original)}')">✓ Accept</button>
-            <button class="btn-small danger" onclick="togglePanel(${idx},'improve')">Reject</button>
-          </div>
-        ` : ''}
-      </div>
-      <div class="panel" id="panel-${idx}-ask">
-        <div>${escapeHtml(s.ask_me)}</div>
-        <textarea class="mini" id="ask-input-${idx}" placeholder="Confirm your experience here..."></textarea>
-        <div class="accept-row">
-          <button class="btn-small primary" onclick="generateFromAnswer(${idx}, '${b64(s.requirement)}')">Generate bullet</button>
-        </div>
-        <div id="ask-result-${idx}"></div>
-      </div>
-    `;
-    list.appendChild(card);
-  });
 }
 
-function togglePanel(idx, which){
-  ['improve','ask','explain'].forEach(w => {
-    const p = document.getElementById(`panel-${idx}-${w}`);
-    if(!p) return;
-    if(w === which) p.classList.toggle('open');
-    else p.classList.remove('open');
-  });
+function meter(label, value, hint){
+  const color = value >= 70 ? 'var(--green)' : value >= 45 ? 'var(--amber)' : 'var(--red)';
+  return `<div class="metric"><div class="mval" style="color:${color}">${value}%</div><div class="mlabel">${label}</div>
+    <div class="mbar"><i style="width:${value}%;background:${color}"></i></div><div class="mhint">${hint}</div></div>`;
 }
 
-function b64(s){ return btoa(unescape(encodeURIComponent(s))); }
-function ub64(s){ return decodeURIComponent(escape(atob(s))); }
-
-function escapeHtml(str){
-  if(str === null || str === undefined) return '';
-  return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-async function acceptImprove(idx, reqB64, origB64){
-  const original = ub64(origB64);
-  const newTextEl = document.getElementById(`improve-text-${idx}`);
-  const newText = newTextEl.textContent.trim();
-  if(original && workingResume.includes(original)){
-    workingResume = workingResume.replace(original, newText);
-  }else{
-    workingResume += `\n- ${newText}`;
-    addedBullets.push(newText);
+// The resume line with the JD's keywords it contains in bold.
+function highlightTerms(line, terms){
+  let html = esc(line);
+  for(const t of [...terms].sort((a, b) => b.length - a.length)){
+    const re = new RegExp(`(^|[^\\w+#])(${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?![\\w+#])`, 'gi');
+    html = html.replace(re, '$1<b class="hit">$2</b>');
   }
-  markAccepted(idx);
-  await recomputeProjection();
+  return html;
 }
 
-async function generateFromAnswer(idx, reqB64){
-  const requirement = ub64(reqB64);
-  const answer = document.getElementById(`ask-input-${idx}`).value.trim();
-  if(!answer){ return; }
-  const res = await fetch('/api/clarify', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({requirement, answer})
-  });
-  const data = await res.json();
-  const box = document.getElementById(`ask-result-${idx}`);
-  if(!res.ok){
-    box.innerHTML = `<div style="margin-top:8px;border-radius:8px;padding:10px 12px;background:#fdf1e6;color:#7a3e00">${escapeHtml(data.detail || 'Please describe what you did.')}</div>`;
-    return;
+function renderSemantic(){
+  const s = analysis.score, kws = analysis.keywords;
+  const by = st => kws.filter(k => k.status === st);
+  $('semMetrics').innerHTML = [
+    meter('Semantic match', s.semantic_percent, 'How close in meaning your resume is to the requirements'),
+    meter('Exact keywords', s.keyword_percent, 'JD keywords that appear word for word, as an ATS checks'),
+    meter('Requirements met', Math.round(100 * s.counts.Match / s.total_requirements),
+          `${s.counts.Match} of ${s.total_requirements} clearly covered`),
+  ].join('');
+
+  const chip = k => {
+    const req = k.importance === 'Required' ? ' req' : '';
+    const title = esc(k.requirements[0]);
+    if(k.status === 'semantic')
+      return `<span class="kchip${req}" title="${title}">${esc(k.resume_term)} <span class="arrow">→</span> <b>${esc(k.term)}</b>
+        <small>${Math.round(k.similarity * 100)}%</small></span>`;
+    return `<span class="kchip${req}" title="${title}">${esc(k.term)}</span>`;
+  };
+  for(const [st, id, n] of [['exact', 'kwExact', 'kwExactN'], ['semantic', 'kwSem', 'kwSemN'], ['missing', 'kwMiss', 'kwMissN']]){
+    const list = by(st);
+    $(n).textContent = `(${list.length})`;
+    $(id).innerHTML = list.length ? list.map(chip).join('') : '<span class="muted">None</span>';
   }
-  box.innerHTML = `
-    <div class="box new" style="margin-top:8px;border-radius:8px;padding:10px 12px;background:#e9f9ee;color:#134d27" contenteditable="true" id="ask-bullet-${idx}">${escapeHtml(data.suggested_bullet)}</div>
-    <div class="accept-row">
-      <button class="btn-small primary" onclick="acceptAskBullet(${idx})">✓ Add to resume</button>
-    </div>
-  `;
+
+  const rank = {Missing: 0, Partial: 1, Match: 2};
+  const reqs = [...analysis.requirements].sort((a, b) => rank[a.status] - rank[b.status] || a.similarity - b.similarity);
+  $('reqCards').innerHTML = reqs.map(r => {
+    const sem = Math.round(r.semantic * 100), kw = Math.round(r.keyword_share * 100);
+    return `<div class="rcard">
+      <div class="rhead"><span class="tag ${r.status}">${r.status}</span>
+        ${r.importance === 'Required' ? '<span class="tag Missing">Required</span>' : ''}
+        <span class="rtext">${esc(r.requirement)}</span></div>
+      <div class="rbars">
+        <div><span>Meaning</span><span class="bar"><i style="width:${sem}%"></i></span><b>${sem}%</b></div>
+        <div><span>Keywords</span><span class="bar kw"><i style="width:${kw}%"></i></span><b>${kw}%</b></div>
+      </div>
+      <div class="rline">${r.evidence ? `<span class="muted">Closest line:</span> ${highlightTerms(r.evidence, r.matched_terms)}`
+                                      : '<span class="muted">Nothing in your resume is close to this.</span>'}</div>
+      ${r.missing_terms.length ? `<div class="rmiss">Missing: ${r.missing_terms.map(t => `<span class="kchip">${esc(t)}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
 }
 
-async function acceptAskBullet(idx){
-  const text = document.getElementById(`ask-bullet-${idx}`).textContent.trim();
-  workingResume += `\n- ${text}`;
-  addedBullets.push(text);
-  markAccepted(idx);
-  await recomputeProjection();
+// ---------------------------------------------------------------- download
+
+function resetFile(){
+  $('filebox').hidden = true;
+  ['exportOk', 'copyBox', 'exportWarn', 'pdfFrame'].forEach(id => { $(id).hidden = true; });
+  $('exportWarn').innerHTML = '';
+  if(fileUrl){ URL.revokeObjectURL(fileUrl); fileUrl = null; }
 }
 
-function markAccepted(idx){
-  const card = document.getElementById(`sugg-${idx}`);
-  if(card && !card.querySelector('.accepted-tag')){
-    const tag = document.createElement('div');
-    tag.className = 'accepted-tag';
-    tag.textContent = '✓ Added to improved resume';
-    card.appendChild(tag);
-  }
-  acceptedCount++;
+function copyText(btn, text){
+  navigator.clipboard.writeText(text).then(() => { btn.textContent = 'Copied'; setTimeout(() => btn.textContent = 'Copy', 1200); });
 }
 
-function renderResumePreview(){
-  document.getElementById('resumePreview').textContent = workingResume;
-}
-
-async function recomputeProjection(){
-  renderResumePreview();
-  try{
-    const res = await fetch('/api/analyze', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({resume_text: workingResume, jd_text: jdEl.value.trim()})
-    });
-    const data = await res.json();
-    if(res.ok){
-      updateProjection(data.score);
-    }
-  }catch(e){ /* silent — projection is best-effort */ }
-}
-
-function updateProjection(score){
-  const basePct = lastData.score.percent;
-  const newPct = score.percent;
-  const delta = document.getElementById('projDelta');
-  const diff = newPct - basePct;
-  delta.textContent = (diff >= 0 ? '+' : '') + diff + '%';
-  delta.className = 'delta ' + (diff > 0 ? 'up' : 'flat');
-  document.getElementById('projFrom').textContent = `current: ${basePct}% → projected: ${newPct}%`;
-  setTargetBadge('projTargetBadge', score.meets_target);
-}
-
-function copyResume(){
-  navigator.clipboard.writeText(workingResume).then(() => {
-    const btn = event.target;
-    const old = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = old, 1200);
-  });
-}
-
-function base64ToBlob(b64, mime){
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], {type: mime});
-}
-
-async function generateFinalResume(evt){
-  hideError();
-  const btn = evt.target;
-  const original = btn.textContent;
+// One click: applies the selected fixes to the original file and saves it.
+async function downloadResume(){
+  showError('');
+  if(!selectedEdits().length) return showError('Pick at least one fix first, or press "Apply best fixes".');
+  const btn = $('downloadBtn');
   btn.disabled = true;
-  btn.textContent = 'Generating…';
+  btn.innerHTML = '<span class="spinner" style="border-color:rgba(0,0,0,.15);border-top-color:var(--accent)"></span> Preparing…';
   try{
-    const res = await fetch('/api/generate-resume', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({resume_id: resumeId, final_text: workingResume, added_bullets: addedBullets})
-    });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.detail || 'Could not generate the final resume.');
-    renderFinalPreview(data);
+    const data = await post('/api/export',
+      {resume_id: resumeId, resume_text: analysis.resume_text, jd_text: jdInput.value, edits: selectedEdits()});
+    resetFile();
+    const bytes = Uint8Array.from(atob(data.file_base64), c => c.charCodeAt(0));
+    fileUrl = URL.createObjectURL(new Blob([bytes], {type: data.mime}));
+    const a = document.createElement('a');
+    a.href = fileUrl; a.download = data.filename;
+    document.body.appendChild(a); a.click(); a.remove();
+
+    $('filebox').hidden = false;
+    $('exportOk').innerHTML = `✓ Saved <b>${esc(data.filename)}</b> with ${data.applied} change(s), in your original ${FORMAT_NAMES[data.format]} format.`;
+    $('exportOk').hidden = false;
+    if(data.pages && data.pages[1] > data.pages[0]){
+      $('exportWarn').innerHTML = `<b>Your resume is now ${data.pages[1]} pages</b> (was ${data.pages[0]}): everything you picked
+        didn't fit, so the last section moved to a new page. Untick a few bullets and download again to keep ${data.pages[0]}.`;
+      $('exportWarn').hidden = false;
+    }
+    if(data.to_copy.length){
+      $('copyBox').innerHTML = '<b>No room left on the page for these bullets.</b> Untick a few fixes and download again, or add them yourself:'
+        + data.to_copy.map((t, i) => `<div class="copyrow"><code id="cp-${i}">${esc(t)}</code>
+            <button class="btn small" onclick="copyText(this, $('cp-${i}').textContent)">Copy</button></div>`).join('');
+      $('copyBox').hidden = false;
+    }
+    if(data.failed.length){
+      $('exportWarn').innerHTML += (data.pages && data.pages[1] > data.pages[0] ? '<br><br>' : '')
+        + '<b>Not applied:</b><br>' + data.failed.map(f => `${esc(f.old)} → ${esc(f.new)}: ${esc(f.reason)}`).join('<br>');
+      $('exportWarn').hidden = false;
+    }
+    if(data.format === 'pdf'){ $('pdfFrame').src = fileUrl; $('pdfFrame').hidden = false; }
+    showTab('fixes');
+    $('filebox').scrollIntoView({behavior: 'smooth', block: 'nearest'});
   }catch(err){
-    showError(err.message || 'Could not generate the final resume.');
+    showError(err.message);
   }finally{
     btn.disabled = false;
-    btn.textContent = original;
+    btn.textContent = '⬇ Download';
   }
-}
-
-function renderFinalPreview(data){
-  const meta = document.getElementById('finalMeta');
-  meta.hidden = false;
-  meta.textContent = `📄 Format: PDF · ${data.page_count_estimate} page(s)${data.truncated ? "" : " · " + data.note}`;
-
-  const warn = document.getElementById('finalWarning');
-  const warnings = [];
-  if(data.truncated) warnings.push(data.note);
-  if(data.left_out && data.left_out.length){
-    warnings.push('Left out unfilled [placeholders]. Fill these in: ' + data.left_out.join('; ') + '.');
-  }
-  warn.hidden = warnings.length === 0;
-  warn.textContent = warnings.map(w => '⚠ ' + w).join('\n');
-  warn.style.whiteSpace = 'pre-line';
-
-  const pdfFrame = document.getElementById('finalPdfPreview');
-  const textBox = document.getElementById('finalTextPreview');
-  document.getElementById('finalPreviewWrap').hidden = false;
-
-  const blob = base64ToBlob(data.file_base64, MIME_TYPES[data.format] || 'application/octet-stream');
-  lastFinalBlob = blob;
-  lastFinalFilename = data.filename;
-
-  if(data.format === 'pdf'){
-    pdfFrame.src = URL.createObjectURL(blob);
-    pdfFrame.hidden = false;
-    textBox.hidden = true;
-  }else{
-    pdfFrame.hidden = true;
-    textBox.hidden = false;
-    textBox.textContent = workingResume + (data.format === 'docx'
-      ? '\n\n(Preview shows the text content — download to see the exact Word formatting.)'
-      : '');
-  }
-
-  document.getElementById('finalActions').hidden = false;
-}
-
-function downloadFinalResume(){
-  if(!lastFinalBlob) return;
-  const url = URL.createObjectURL(lastFinalBlob);
-  const a = document.createElement('a');
-  a.href = url; a.download = lastFinalFilename || 'improved-resume';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 </script>
 </body>

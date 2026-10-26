@@ -237,15 +237,10 @@ def place_bullets(resume: Resume, bullets: List[str]) -> None:
         sec.items.extend(Item("bullet", b) for b in bullets)
         return
 
-    from matcher import get_model
-    from sentence_transformers import util
+    from matcher import embed
 
-    model = get_model()
-    entry_emb = model.encode([e[2] for e in entries], convert_to_tensor=True)
-    targets = []
-    for b in bullets:
-        sims = util.cos_sim(model.encode(b, convert_to_tensor=True), entry_emb)[0]
-        targets.append((int(sims.argmax()), b))
+    sims = embed(bullets) @ embed([e[2] for e in entries]).T
+    targets = [(int(row.argmax()), b) for row, b in zip(sims, bullets)]
     # Insert from the bottom entry up so earlier insertion indexes stay valid.
     for entry_idx in sorted({t[0] for t in targets}, reverse=True):
         sec, last_idx, _ = entries[entry_idx]
